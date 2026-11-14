@@ -11,58 +11,35 @@ import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.entity.ReloadState;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.client.resource.ClientAssetsManager;
-import com.tacz.guns.client.resource.pojo.display.SoundData;
 import com.tacz.guns.client.sound.SoundPlayManager;
 import com.tacz.guns.client.resource.pojo.animation.bedrock.BedrockAnimationFile;
 import com.tacz.guns.config.common.GunConfig;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
-//? if forge {
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-//?} else {
-/*import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-*///?}
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.entropy.tacz_turrets.TACZTurrets.MODID;
 
-//? if forge {
-@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = MODID)
-//?} else {
-/*@EventBusSubscriber(value = Dist.CLIENT, modid = MODID)
-*///?}
 public class TurretReloadSound {
     private static final String EMPTY_ANIMATION = "reload_empty";
     private static final String TACTICAL_ANIMATION = "reload_tactical";
     private static final double TICK_SECONDS = 0.05D;
 
     private static final Map<Integer, Playback> PLAYING = new HashMap<>();
-    private static final Map<ResourceLocation, Map<String, ObjectAnimationSoundChannel>> CACHE = new HashMap<>();
+    private static final Map<Identifier, Map<String, ObjectAnimationSoundChannel>> CACHE = new HashMap<>();
 
-    @SubscribeEvent
-    //? if forge {
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-    //?} else {
-    /*public static void onClientTick(ClientTickEvent.Post event) {
-    *///?}
-
-        Minecraft minecraft = Minecraft.getInstance();
+    public static void tick(Minecraft minecraft) {
         if (minecraft.level == null || minecraft.isPaused()) return;
         if (!TACZTurretsConfig.ENABLE_SOUNDS.get() || !TACZTurretsConfig.RELOAD_SOUND.get()) {
             PLAYING.clear();
@@ -99,22 +76,25 @@ public class TurretReloadSound {
         CACHE.clear();
     }
 
-    //? if forge {
-    @Mod.EventBusSubscriber(value = Dist.CLIENT, modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
-    //?} else {
-    /*@EventBusSubscriber(value = Dist.CLIENT, modid = MODID, bus = EventBusSubscriber.Bus.MOD)
-    *///?}
-    public static class ReloadHandler {
-        @SubscribeEvent
-        public static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener((ResourceManagerReloadListener) manager -> clear());
-        }
+    public static void registerClient() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            @Override
+            public Identifier getFabricId() {
+                return Identifier.fromNamespaceAndPath(MODID, "turret_reload_sound");
+            }
+
+            @Override
+            public void onResourceManagerReload(ResourceManager resourceManager) {
+                clear();
+            }
+        });
     }
 
     private static void playDisplaySound(TurretEntity turret, ReloadState.StateType state) {
         ItemStack gunStack = turret.getGunStack();
         String name = state.isReloadingTactical() ? TACTICAL_ANIMATION : EMPTY_ANIMATION;
-        SoundData sound = TimelessAPI.getGunDisplay(gunStack).map(display -> display.getSounds(name)).orElse(null);
+        Identifier sound = TimelessAPI.getGunDisplay(gunStack).map(display -> display.getSounds(name)).orElse(null);
         if (sound == null) return;
         SoundPlayManager.playClientSound(turret, sound, 1.0F, 1.0F, GunConfig.DEFAULT_GUN_OTHER_SOUND_DISTANCE.get());
     }
@@ -131,7 +111,7 @@ public class TurretReloadSound {
         return channels.get(state.isReloadingTactical() ? EMPTY_ANIMATION : TACTICAL_ANIMATION);
     }
 
-    private static Map<String, ObjectAnimationSoundChannel> loadChannels(ResourceLocation gunId) {
+    private static Map<String, ObjectAnimationSoundChannel> loadChannels(Identifier gunId) {
         Map<String, ObjectAnimationSoundChannel> channels = new HashMap<>();
         BedrockAnimationFile file = ClientAssetsManager.INSTANCE.getBedrockAnimations(gunId);
         if (file == null) return channels;
@@ -148,7 +128,7 @@ public class TurretReloadSound {
     private static boolean hasPackSounds(ObjectAnimationSoundChannel channel) {
         AnimationSoundChannelContent content = channel.content;
         if (content == null || content.keyframeSoundName == null) return false;
-        for (ResourceLocation sound : content.keyframeSoundName) {
+        for (Identifier sound : content.keyframeSoundName) {
             if (sound != null && !"minecraft".equals(sound.getNamespace())) return true;
         }
         return false;

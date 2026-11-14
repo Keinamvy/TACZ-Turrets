@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "tacz_turrets_testmod",
+  "version": "1.0.0",
+  "name": "TACZ Turrets 26.3 Pre-Prod Test Mod",
+  "description": "Automated in-game feature test suite for TACZ Turrets on Fabric 26.3",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.entropy.tacz_turrets.testmod.TACZTurretsPreProdTestMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~26.3",
+    "tacz_turrets": "*"
+  }
+}

@@ -3,8 +3,10 @@ package com.entropy.tacz_turrets.turret;
 import com.entropy.tacz_turrets.TACZTurrets;
 import com.entropy.tacz_turrets.config.TACZTurretsConfig;
 import com.entropy.tacz_turrets.registry.ItemRegistry;
-import com.google.gson.Gson;
+import com.entropy.tacz_turrets.turret.TurretEntity.ItemHandlerHelper;
+import com.entropy.tacz_turrets.turret.TurretEntity.ItemStackHandler;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -19,20 +21,19 @@ import com.tacz.guns.api.item.gun.FireMode;
 import com.tacz.guns.resource.index.CommonAmmoIndex;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.util.random.Weight;
-import net.minecraft.util.random.WeightedEntry;
-import net.minecraft.util.random.WeightedRandom;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
@@ -40,17 +41,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.BannerBlock;
 import net.minecraft.world.level.block.entity.BannerPattern;
-//? if forge {
-import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.items.ItemStackHandler;
-//?} else {
-/*import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.entity.BannerPatternLayers;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
-import net.neoforged.neoforge.items.ItemStackHandler;
-*///?}
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Reader;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -58,10 +52,10 @@ import java.util.Map;
 import java.util.Optional;
 
 public record SentryLoadout(List<TurretType> types, boolean hostile, List<GunEntry> guns, Optional<Range> ammo, float laserChance, float paintChance, List<Either<Item, Banner>> paints, int range, float gunDropChance, float laserDropChance) {
-    public static final ResourceLocation DEFAULT = TACZTurrets.id("default");
+    public static final Identifier DEFAULT = TACZTurrets.id("default");
     private static final Codec<TurretType> TYPE_CODEC = Codec.STRING.comapFlatMap(id -> Arrays.stream(TurretType.values()).filter(type -> type.id().equals(id)).findFirst().map(DataResult::success).orElseGet(() -> DataResult.error(() -> "Unknown turret type " + id)), TurretType::id);
     private static final Codec<Float> CHANCE = Codec.floatRange(0.0F, 1.0F);
-    public static final Codec<SentryLoadout> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+    public static final Codec<SentryLoadout> CODEC = Codec.lazyInitialized(() -> RecordCodecBuilder.create(instance -> instance.group(
             ExtraCodecs.nonEmptyList(TYPE_CODEC.listOf()).optionalFieldOf("types", List.of(TurretType.values())).forGetter(SentryLoadout::types),
             Codec.BOOL.optionalFieldOf("hostile", true).forGetter(SentryLoadout::hostile),
             ExtraCodecs.nonEmptyList(GunEntry.CODEC.listOf()).fieldOf("guns").forGetter(SentryLoadout::guns),
@@ -72,10 +66,10 @@ public record SentryLoadout(List<TurretType> types, boolean hostile, List<GunEnt
             Codec.intRange(1, 256).optionalFieldOf("range", 32).forGetter(SentryLoadout::range),
             CHANCE.optionalFieldOf("gun_drop_chance", 0.1F).forGetter(SentryLoadout::gunDropChance),
             CHANCE.optionalFieldOf("laser_drop_chance", 0.0F).forGetter(SentryLoadout::laserDropChance)
-    ).apply(instance, SentryLoadout::new));
-    private static volatile Map<ResourceLocation, SentryLoadout> loadouts = Map.of();
+    ).apply(instance, SentryLoadout::new)));
+    private static volatile Map<Identifier, SentryLoadout> loadouts = Map.of();
 
-    public static Optional<SentryLoadout> get(ResourceLocation id) {
+    public static Optional<SentryLoadout> get(Identifier id) {
         return Optional.ofNullable(loadouts.getOrDefault(id, loadouts.get(DEFAULT)));
     }
 
@@ -97,56 +91,60 @@ public record SentryLoadout(List<TurretType> types, boolean hostile, List<GunEnt
         ItemStackHandler inventory = turret.getInventory();
         for (int slot = 0; slot < inventory.getSlots(); slot++) inventory.setStackInSlot(slot, ItemStack.EMPTY);
         turret.setGunStack(ItemStack.EMPTY);
-        WeightedRandom.getRandomItem(random, guns.stream().filter(entry -> !entry.candidates().isEmpty()).toList()).ifPresent(entry -> {
-            List<ResourceLocation> candidates = entry.candidates();
-            ResourceLocation gunId = candidates.get(random.nextInt(candidates.size()));
+
+        List<GunEntry> validGuns = guns.stream().filter(entry -> !entry.candidates().isEmpty()).toList();
+        if (!validGuns.isEmpty()) {
+            int totalWeight = 0;
+            for (GunEntry entry : validGuns) totalWeight += Math.max(1, entry.weight());
+            int roll = random.nextInt(totalWeight);
+            GunEntry chosen = validGuns.get(0);
+            for (GunEntry entry : validGuns) {
+                roll -= Math.max(1, entry.weight());
+                if (roll < 0) {
+                    chosen = entry;
+                    break;
+                }
+            }
+            List<Identifier> candidates = chosen.candidates();
+            Identifier gunId = candidates.get(random.nextInt(candidates.size()));
             GunData data = TimelessAPI.getCommonGunIndex(gunId).orElseThrow().getGunData();
             int rounds = ammo.map(range -> range.roll(random)).orElse(data.getAmmoAmount());
             int loaded = Math.min(rounds, data.getAmmoAmount());
             List<FireMode> modes = data.getFireModeSet();
             GunItemBuilder gun = GunItemBuilder.create().setId(gunId).setAmmoCount(loaded).setFireMode(modes.contains(FireMode.AUTO) ? FireMode.AUTO : modes.isEmpty() ? FireMode.UNKNOWN : modes.get(0));
-            //? if forge {
             turret.setGunStack(gun.build());
-            //?} else {
-            /*turret.setGunStack(gun.build(turret.level().registryAccess()));
-            *///?}
             int stackSize = TimelessAPI.getCommonAmmoIndex(data.getAmmoId()).map(CommonAmmoIndex::getStackSize).orElse(64);
             for (int left = rounds - loaded; left > 0; left -= stackSize) {
                 if (!ItemHandlerHelper.insertItemStacked(inventory, AmmoItemBuilder.create().setId(data.getAmmoId()).setCount(Math.min(left, stackSize)).build(), false).isEmpty()) break;
             }
-        });
+        }
     }
 
     private static ItemStack randomLaser(RandomSource random) {
-        List<ResourceLocation> lasers = TimelessAPI.getAllCommonAttachmentIndex().stream().filter(entry -> entry.getValue().getType() == AttachmentType.LASER && !entry.getValue().getPojo().isHidden()).map(Map.Entry::getKey).toList();
+        List<Identifier> lasers = TimelessAPI.getAllCommonAttachmentIndex().stream().filter(entry -> entry.getValue().getType() == AttachmentType.LASER && !entry.getValue().getPojo().isHidden()).map(Map.Entry::getKey).toList();
         return lasers.isEmpty() ? ItemStack.EMPTY : AttachmentItemBuilder.create().setId(lasers.get(random.nextInt(lasers.size()))).build();
     }
 
     private ItemStack randomPaint(TurretEntity turret, RandomSource random, Holder<Biome> biome) {
         List<Either<Item, Banner>> pool = !paints.isEmpty() ? paints : ItemRegistry.CAMOS.stream()
                 .filter(name -> biome.is(TagKey.create(Registries.BIOME, TACZTurrets.id("camo/" + name))))
-                .map(name -> Either.<Item, Banner>left(BuiltInRegistries.ITEM.get(TACZTurrets.id(name + "_camo"))))
+                .map(name -> Either.<Item, Banner>left(BuiltInRegistries.ITEM.getValue(TACZTurrets.id(name + "_camo"))))
                 .toList();
         if (pool.isEmpty()) return ItemStack.EMPTY;
         ItemStack paint = pool.get(random.nextInt(pool.size())).map(item -> new ItemStack(item), banner -> banner.build(turret));
         return TurretEntity.isPaint(paint) ? paint : ItemStack.EMPTY;
     }
 
-    public record GunEntry(Optional<ResourceLocation> gun, Optional<String> type, int weight) implements WeightedEntry {
+    public record GunEntry(Optional<Identifier> gun, Optional<String> type, int weight) {
         static final Codec<GunEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                ResourceLocation.CODEC.optionalFieldOf("gun").forGetter(GunEntry::gun),
+                Identifier.CODEC.optionalFieldOf("gun").forGetter(GunEntry::gun),
                 Codec.STRING.optionalFieldOf("type").forGetter(GunEntry::type),
                 Codec.intRange(1, 10000).optionalFieldOf("weight", 1).forGetter(GunEntry::weight)
         ).apply(instance, GunEntry::new));
 
-        List<ResourceLocation> candidates() {
+        List<Identifier> candidates() {
             if (gun.isPresent()) return TimelessAPI.getCommonGunIndex(gun.get()).isPresent() ? List.of(gun.get()) : List.of();
             return TimelessAPI.getAllCommonGunIndex().stream().filter(entry -> type.isEmpty() || type.get().equals(entry.getValue().getType())).map(Map.Entry::getKey).toList();
-        }
-
-        @Override
-        public @NotNull Weight getWeight() {
-            return Weight.of(weight);
         }
     }
 
@@ -157,22 +155,16 @@ public record SentryLoadout(List<TurretType> types, boolean hostile, List<GunEnt
         ).apply(instance, Banner::new));
 
         ItemStack build(TurretEntity turret) {
-            ItemStack stack = new ItemStack(BannerBlock.byColor(base));
-            //? if forge {
-            BannerPattern.Builder builder = new BannerPattern.Builder();
-            for (Layer layer : patterns) BuiltInRegistries.BANNER_PATTERN.getHolder(layer.key()).ifPresent(pattern -> builder.addPattern(pattern, layer.color()));
-            stack.getOrCreateTagElement("BlockEntityTag").put("Patterns", builder.toListTag());
-            //?} else {
-            /*BannerPatternLayers.Builder builder = new BannerPatternLayers.Builder();
+            ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(base.getName() + "_banner")));
+            BannerPatternLayers.Builder builder = new BannerPatternLayers.Builder();
             for (Layer layer : patterns) builder.addIfRegistered(turret.level().registryAccess().lookupOrThrow(Registries.BANNER_PATTERN), layer.key(), layer.color());
             stack.set(DataComponents.BANNER_PATTERNS, builder.build());
-            *///?}
             return stack;
         }
 
-        public record Layer(ResourceLocation pattern, DyeColor color) {
+        public record Layer(Identifier pattern, DyeColor color) {
             static final Codec<Layer> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                    ResourceLocation.CODEC.fieldOf("pattern").forGetter(Layer::pattern),
+                    Identifier.CODEC.fieldOf("pattern").forGetter(Layer::pattern),
                     DyeColor.CODEC.fieldOf("color").forGetter(Layer::color)
             ).apply(instance, Layer::new));
 
@@ -193,14 +185,34 @@ public record SentryLoadout(List<TurretType> types, boolean hostile, List<GunEnt
         }
     }
 
-    public static class Listener extends SimpleJsonResourceReloadListener {
-        public Listener() {
-            super(new Gson(), "sentry_loadouts");
+    public static class Listener extends SimplePreparableReloadListener<Map<Identifier, JsonElement>> implements net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener {
+        @Override
+        public Identifier getFabricId() {
+            return TACZTurrets.id("sentry_loadouts");
         }
 
         @Override
-        protected void apply(@NotNull Map<ResourceLocation, JsonElement> files, @NotNull ResourceManager manager, @NotNull ProfilerFiller profiler) {
-            Map<ResourceLocation, SentryLoadout> loaded = new HashMap<>();
+        protected Map<Identifier, JsonElement> prepare(ResourceManager manager, ProfilerFiller profiler) {
+            Map<Identifier, JsonElement> map = new HashMap<>();
+            String directory = "sentry_loadouts";
+            for (Map.Entry<Identifier, Resource> entry : manager.listResources(directory, file -> file.getPath().endsWith(".json")).entrySet()) {
+                Identifier fileId = entry.getKey();
+                String path = fileId.getPath();
+                String subPath = path.substring(directory.length() + 1, path.length() - ".json".length());
+                Identifier id = Identifier.fromNamespaceAndPath(fileId.getNamespace(), subPath);
+                try (Reader reader = entry.getValue().openAsReader()) {
+                    JsonElement json = JsonParser.parseReader(reader);
+                    map.put(id, json);
+                } catch (Exception e) {
+                    TACZTurrets.LOGGER.error("Couldn't parse sentry loadout {}", fileId, e);
+                }
+            }
+            return map;
+        }
+
+        @Override
+        protected void apply(@NotNull Map<Identifier, JsonElement> files, @NotNull ResourceManager manager, @NotNull ProfilerFiller profiler) {
+            Map<Identifier, SentryLoadout> loaded = new HashMap<>();
             files.forEach((id, json) -> {
                 DataResult<SentryLoadout> result = CODEC.parse(JsonOps.INSTANCE, json);
                 result.result().ifPresent(loadout -> loaded.put(id, loadout));

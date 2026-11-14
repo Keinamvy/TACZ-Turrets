@@ -11,21 +11,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.core.registries.BuiltInRegistries;
-//? if forge {
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.common.ForgeConfigSpec.BooleanValue;
-import net.minecraftforge.common.ForgeConfigSpec.Builder;
-import net.minecraftforge.common.ForgeConfigSpec.ConfigValue;
-import net.minecraftforge.common.ForgeConfigSpec.DoubleValue;
-import net.minecraftforge.common.ForgeConfigSpec.EnumValue;
-import net.minecraftforge.common.ForgeConfigSpec.IntValue;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
-//?} else {
-/*import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.config.ModConfigEvent;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.neoforge.common.ModConfigSpec.BooleanValue;
 import net.neoforged.neoforge.common.ModConfigSpec.Builder;
@@ -33,17 +19,11 @@ import net.neoforged.neoforge.common.ModConfigSpec.ConfigValue;
 import net.neoforged.neoforge.common.ModConfigSpec.DoubleValue;
 import net.neoforged.neoforge.common.ModConfigSpec.EnumValue;
 import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
-*///?}
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-//? if forge {
-@Mod.EventBusSubscriber(modid = TACZTurrets.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
-//?} else {
-/*@EventBusSubscriber(modid = TACZTurrets.MODID, bus = EventBusSubscriber.Bus.MOD)
-*///?}
 public class TACZTurretsConfig {
     private static final Builder BUILDER = new Builder();
 
@@ -355,13 +335,9 @@ public class TACZTurretsConfig {
             .comment("Sniper guns double a sentry turret's range.")
             .define("sniperSentryRange", false);
 
-    //? if forge {
-    public static final BooleanValue IDENTICAL_TURRETS = BUILDER
-    //?} else {
-    /*private static final Builder COMMON_BUILDER = new Builder();
+    private static final Builder COMMON_BUILDER = new Builder();
 
     public static final BooleanValue IDENTICAL_TURRETS = COMMON_BUILDER
-    *///?}
             .comment("All turrets use the modern turret's stats and recipe, so turret types only change the look.")
             .define("identicalTurrets", false);
 
@@ -406,15 +382,10 @@ public class TACZTurretsConfig {
         public final DoubleValue repairAmount;
 
         private TurretStats(TurretType type) {
-            //? if forge {
-            BUILDER.push(type.id());
-            enabled = BUILDER.comment("Whether this turret can be crafted, placed and spawn as a sentry turret.").define("enabled", true);
-            //?} else {
-            /*COMMON_BUILDER.push(type.id());
+            COMMON_BUILDER.push(type.id());
             enabled = COMMON_BUILDER.comment("Whether this turret can be crafted, placed and spawn as a sentry turret.").define("enabled", true);
             COMMON_BUILDER.pop();
             BUILDER.push(type.id());
-            *///?}
             requirePower = BUILDER.comment(type == TurretType.BRASS ? "Needs rotational power from a Create small cogwheel placed next to it." : "Needs FE to run.").define("requirePower", type.isModded());
             health = BUILDER.comment("Health of the turret.").defineInRange("health", type.defaultHealth, 10, 1000);
             armor = BUILDER.comment("Armor points of the turret.").defineInRange("armor", type.defaultArmor, 0.0D, 1000.0D);
@@ -436,12 +407,8 @@ public class TACZTurretsConfig {
         }
     }
 
-    //? if forge {
-    public static final ForgeConfigSpec SPEC = BUILDER.build();
-    //?} else {
-    /*public static final ModConfigSpec SPEC = BUILDER.build();
+    public static final ModConfigSpec SPEC = BUILDER.build();
     public static final ModConfigSpec COMMON_SPEC = COMMON_BUILDER.build();
-    *///?}
 
     private static final Builder CLIENT_BUILDER = new Builder();
 
@@ -465,19 +432,15 @@ public class TACZTurretsConfig {
             .comment("Show lasers from turrets you don't own.")
             .define("showOthersLasers", true);
 
-    //? if forge {
-    public static final ForgeConfigSpec CLIENT_SPEC = CLIENT_BUILDER.build();
-    //?} else {
-    /*public static final ModConfigSpec CLIENT_SPEC = CLIENT_BUILDER.build();
-    *///?}
+    public static final ModConfigSpec CLIENT_SPEC = CLIENT_BUILDER.build();
 
     public static Set<String> sniperGunTypes = Set.copyOf(SNIPER_GUN_TYPES.getDefault());
     public static int healthBarColor = parseColor(HEALTH_BAR_COLOR.getDefault());
-    public static RegistryFilter<EntityType<?>> targetBlacklist = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, TARGET_BLACKLIST.getDefault());
-    public static RegistryFilter<EntityType<?>> targetWhitelist = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, TARGET_WHITELIST.getDefault());
-    public static RegistryFilter<EntityType<?>> damageableEntities = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, DAMAGEABLE_ENTITIES.getDefault());
-    public static RegistryFilter<Item> repairItems = RegistryFilter.of(BuiltInRegistries.ITEM, REPAIR_ITEMS.getDefault());
-    public static RegistryFilter<MobEffect> effectBlacklist = RegistryFilter.of(BuiltInRegistries.MOB_EFFECT, EFFECT_BLACKLIST.getDefault());
+    public static RegistryFilter<EntityType<?>> targetBlacklist = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, TARGET_BLACKLIST.getDefault());
+    public static RegistryFilter<EntityType<?>> targetWhitelist = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, TARGET_WHITELIST.getDefault());
+    public static RegistryFilter<EntityType<?>> damageableEntities = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, DAMAGEABLE_ENTITIES.getDefault());
+    public static RegistryFilter<Item> repairItems = RegistryFilter.of(net.minecraft.core.registries.Registries.ITEM, () -> BuiltInRegistries.ITEM, REPAIR_ITEMS.getDefault());
+    public static RegistryFilter<MobEffect> effectBlacklist = RegistryFilter.of(net.minecraft.core.registries.Registries.MOB_EFFECT, () -> BuiltInRegistries.MOB_EFFECT, EFFECT_BLACKLIST.getDefault());
 
     public static int parseColor(String hex) {
         String value = hex.startsWith("#") ? hex.substring(1) : hex;
@@ -488,16 +451,14 @@ public class TACZTurretsConfig {
         }
     }
 
-    @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
-        if (event instanceof ModConfigEvent.Unloading) return;
-        if (event.getConfig().getSpec() == CLIENT_SPEC) healthBarColor = parseColor(HEALTH_BAR_COLOR.get());
-        if (event.getConfig().getSpec() != SPEC) return;
+    public static void onLoad(final ModConfig config) {
+        if (config.getSpec() == CLIENT_SPEC) healthBarColor = parseColor(HEALTH_BAR_COLOR.get());
+        if (config.getSpec() != SPEC) return;
         sniperGunTypes = Set.copyOf(SNIPER_GUN_TYPES.get());
-        targetBlacklist = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, TARGET_BLACKLIST.get());
-        targetWhitelist = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, TARGET_WHITELIST.get());
-        damageableEntities = RegistryFilter.of(BuiltInRegistries.ENTITY_TYPE, DAMAGEABLE_ENTITIES.get());
-        repairItems = RegistryFilter.of(BuiltInRegistries.ITEM, REPAIR_ITEMS.get());
-        effectBlacklist = RegistryFilter.of(BuiltInRegistries.MOB_EFFECT, EFFECT_BLACKLIST.get());
+        targetBlacklist = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, TARGET_BLACKLIST.get());
+        targetWhitelist = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, TARGET_WHITELIST.get());
+        damageableEntities = RegistryFilter.of(net.minecraft.core.registries.Registries.ENTITY_TYPE, () -> BuiltInRegistries.ENTITY_TYPE, DAMAGEABLE_ENTITIES.get());
+        repairItems = RegistryFilter.of(net.minecraft.core.registries.Registries.ITEM, () -> BuiltInRegistries.ITEM, REPAIR_ITEMS.get());
+        effectBlacklist = RegistryFilter.of(net.minecraft.core.registries.Registries.MOB_EFFECT, () -> BuiltInRegistries.MOB_EFFECT, EFFECT_BLACKLIST.get());
     }
 }

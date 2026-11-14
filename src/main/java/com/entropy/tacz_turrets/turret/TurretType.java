@@ -2,12 +2,8 @@ package com.entropy.tacz_turrets.turret;
 
 import com.entropy.tacz_turrets.TACZTurrets;
 import com.entropy.tacz_turrets.config.TACZTurretsConfig;
-import net.minecraft.resources.ResourceLocation;
-//? if forge {
-import net.minecraftforge.fml.ModList;
-//?} else {
-/*import net.neoforged.fml.ModList;
-*///?}
+import net.minecraft.resources.Identifier;
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -30,9 +26,9 @@ public enum TurretType {
     public final double defaultInaccuracy;
     public final double defaultReloadSpeed;
     public final double defaultFireRate;
-    private final ResourceLocation model;
-    private final ResourceLocation[] textures;
-    private final ResourceLocation paintMask;
+    private final Identifier model;
+    private final Identifier[] textures;
+    private final Identifier paintMask;
 
     TurretType(String name, int health, double armor, int range, double inaccuracy, double reloadSpeed, double fireRate) {
         this(name, name, health, armor, range, inaccuracy, reloadSpeed, fireRate);
@@ -45,9 +41,9 @@ public enum TurretType {
         defaultInaccuracy = inaccuracy;
         defaultReloadSpeed = reloadSpeed;
         defaultFireRate = fireRate;
-        model = TACZTurrets.id("geo/entity/" + modelName + ".geo.json");
+        model = TACZTurrets.id("entity/" + modelName);
         paintMask = TACZTurrets.id("textures/entity/" + modelName + "_paint.png");
-        textures = Arrays.stream(TurretState.values()).map(state -> TACZTurrets.id("textures/entity/" + name + "_" + state.name().toLowerCase(Locale.ROOT) + ".png")).toArray(ResourceLocation[]::new);
+        textures = Arrays.stream(TurretState.values()).map(state -> TACZTurrets.id("textures/entity/" + name + "_" + state.name().toLowerCase(Locale.ROOT) + ".png")).toArray(Identifier[]::new);
     }
 
     public String id() {
@@ -68,22 +64,22 @@ public enum TurretType {
     }
 
     public boolean isAvailable() {
-        return !isModded() || ModList.get().isLoaded(requiredMod());
+        return !isModded() || FabricLoader.getInstance().isModLoaded(requiredMod());
     }
 
     public TACZTurretsConfig.TurretStats stats() {
         return TACZTurretsConfig.stats(this);
     }
 
-    public ResourceLocation model() {
+    public Identifier model() {
         return model;
     }
 
-    public ResourceLocation texture(TurretState state) {
+    public Identifier texture(TurretState state) {
         return textures[state.ordinal()];
     }
 
-    public ResourceLocation paintMask() {
+    public Identifier paintMask() {
         return paintMask;
     }
 }

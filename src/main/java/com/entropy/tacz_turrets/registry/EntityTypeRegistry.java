@@ -1,22 +1,28 @@
 package com.entropy.tacz_turrets.registry;
 
+import com.entropy.tacz_turrets.TACZTurrets;
 import com.entropy.tacz_turrets.turret.TurretEntity;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-//? if forge {
-import net.minecraftforge.registries.DeferredRegister;
-//?} else {
-/*import net.neoforged.neoforge.registries.DeferredRegister;
-*///?}
 
 import java.util.function.Supplier;
 
-import static com.entropy.tacz_turrets.TACZTurrets.MODID;
-
 public class EntityTypeRegistry {
-    public static final DeferredRegister<EntityType<?>> TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, MODID);
+    public static final Supplier<EntityType<TurretEntity>> TURRET;
+    public static final Supplier<EntityType<TurretEntity>> SENTRY;
 
-    public static final Supplier<EntityType<TurretEntity>> TURRET = TYPES.register("turret", () -> EntityType.Builder.<TurretEntity>of(TurretEntity::new, MobCategory.MISC).sized(1f, 1f).build("turret"));
-    public static final Supplier<EntityType<TurretEntity>> SENTRY = TYPES.register("sentry_turret", () -> EntityType.Builder.<TurretEntity>of(TurretEntity::new, MobCategory.MISC).sized(1f, 1f).build("sentry_turret"));
+    static {
+        ResourceKey<EntityType<?>> turretKey = ResourceKey.create(Registries.ENTITY_TYPE, TACZTurrets.id("turret"));
+        ResourceKey<EntityType<?>> sentryKey = ResourceKey.create(Registries.ENTITY_TYPE, TACZTurrets.id("sentry_turret"));
+        EntityType<TurretEntity> turret = Registry.register(BuiltInRegistries.ENTITY_TYPE, turretKey, EntityType.Builder.<TurretEntity>of(TurretEntity::new, MobCategory.MISC).sized(1f, 1f).build(turretKey));
+        EntityType<TurretEntity> sentry = Registry.register(BuiltInRegistries.ENTITY_TYPE, sentryKey, EntityType.Builder.<TurretEntity>of(TurretEntity::new, MobCategory.MISC).sized(1f, 1f).build(sentryKey));
+        TURRET = () -> turret;
+        SENTRY = () -> sentry;
+    }
+
+    public static void register() {}
 }

@@ -1,0 +1,141 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.19.4'
+    id 'maven-publish'
+}
+
+version = "${project.mod_version}-${project.minecraft_version}"
+group = project.mod_group
+
+base {
+    archivesName = "${project.mod_id}-fabric"
+}
+
+sourceSets {
+    main {
+        java {
+            exclude "com/entropy/tacz_turrets/compat/RecruitsCompat.java"
+        }
+    }
+    testmod {
+        compileClasspath += main.compileClasspath + main.output
+        runtimeClasspath += main.runtimeClasspath + main.output
+    }
+}
+
+loom {
+    runs {
+        testmodServer {
+            server()
+            name = "Testmod Server"
+            source sourceSets.testmod
+            runDir = "run-test-server"
+            programArg "nogui"
+        }
+    }
+}
+
+repositories {
+    maven {
+        url = "https://maven.fabricmc.net/"
+    }
+    mavenCentral()
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    compileOnly files("libs/TACZ-Refabricated-26.3-1.1.8+fabric.26.3.R1-hotfix3.jar")
+    compileOnly files("libs/geckolib-fabric-26.3-5.5.7.jar")
+    compileOnly files("libs/smartbrainlib-fabric-26.3-2.0.3.jar")
+    compileOnly files("libs/ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar")
+    compileOnly files("libs/core-3.8.4.jar")
+    compileOnly files("libs/toml-3.8.4.jar")
+    compileOnly files("libs/bcel-6.6.1.jar")
+    compileOnly files("libs/commons-math3-3.6.1.jar")
+    compileOnly files("libs/luaj-core-3.0.8-figura.jar")
+    compileOnly files("libs/luaj-jse-3.0.8-figura.jar")
+    compileOnly files("libs/mae-1.1.1.jar")
+
+    runtimeOnly files("libs/TACZ-Refabricated-26.3-1.1.8+fabric.26.3.R1-hotfix3.jar")
+    runtimeOnly files("libs/geckolib-fabric-26.3-5.5.7.jar")
+    runtimeOnly files("libs/smartbrainlib-fabric-26.3-2.0.3.jar")
+    runtimeOnly files("libs/ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar")
+    runtimeOnly files("libs/core-3.8.4.jar")
+    runtimeOnly files("libs/toml-3.8.4.jar")
+    runtimeOnly files("libs/bcel-6.6.1.jar")
+    runtimeOnly files("libs/commons-math3-3.6.1.jar")
+    runtimeOnly files("libs/luaj-core-3.0.8-figura.jar")
+    runtimeOnly files("libs/luaj-jse-3.0.8-figura.jar")
+    runtimeOnly files("libs/mae-1.1.1.jar")
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation files("libs/TACZ-Refabricated-26.3-1.1.8+fabric.26.3.R1-hotfix3.jar")
+    testImplementation files("libs/geckolib-fabric-26.3-5.5.7.jar")
+    testImplementation files("libs/smartbrainlib-fabric-26.3-2.0.3.jar")
+    testImplementation files("libs/ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar")
+    testImplementation files("libs/core-3.8.4.jar")
+    testImplementation files("libs/toml-3.8.4.jar")
+}
+
+processResources {
+    def props = [
+        "id": project.mod_id,
+        "loader": "fabric",
+        "name": project.mod_name,
+        "version": project.mod_version,
+        "authors": project.mod_authors,
+        "description": project.mod_description,
+        "license": project.mod_license,
+        "minecraft": project.mc_dep,
+        "loader_range": project.loader_range,
+        "pack_format": project.pack_format,
+        "tacz": project.tacz_min,
+        "geckolib": project.geckolib_min,
+        "smartbrainlib": project.smartbrainlib_min,
+        "ftbteams_min": project.ftbteams_min,
+        "opac_min": project.opac_min
+    ]
+    inputs.properties(props)
+
+    filesMatching(["fabric.mod.json", "pack.mcmeta", "assets/tacz_turrets/models/item/*.json", "assets/tacz_turrets/gunpack_info.json"]) {
+        expand props
+    }
+
+    exclude("META-INF/mods.toml", "META-INF/neoforge.mods.toml", "data/*/recipes/**", "data/*/tags/entity_types/**", "data/*/loot_tables/**")
+}
+
+tasks.named('processTestmodResources', ProcessResources).configure {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = 25
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('testmodJar', Jar) {
+    group = 'build'
+    archiveBaseName.set("${project.mod_id}-testmod")
+    archiveVersion.set(project.version.toString())
+    from(sourceSets.testmod.output)
+    dependsOn tasks.named('testmodClasses')
+}

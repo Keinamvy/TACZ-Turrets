@@ -1,56 +1,40 @@
 package com.entropy.tacz_turrets.client.model;
 
 import com.entropy.tacz_turrets.TACZTurrets;
-import com.entropy.tacz_turrets.client.CreateCogClock;
-import com.entropy.tacz_turrets.client.renderer.TurretRenderer;
 import com.entropy.tacz_turrets.turret.TurretEntity;
 import com.entropy.tacz_turrets.turret.TurretState;
 import com.entropy.tacz_turrets.turret.TurretType;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import org.joml.Vector2f;
-import software.bernie.geckolib.cache.object.GeoBone;
-//? if forge {
-import software.bernie.geckolib.core.animation.AnimationState;
-//?} else {
-/*import software.bernie.geckolib.animation.AnimationState;
-*///?}
-import software.bernie.geckolib.model.DefaultedEntityGeoModel;
+import com.geckolib.constant.dataticket.DataTicket;
+import com.geckolib.model.DefaultedEntityGeoModel;
+import com.geckolib.renderer.base.GeoRenderState;
+import net.minecraft.resources.Identifier;
 
 public class TurretModel extends DefaultedEntityGeoModel<TurretEntity> {
+    public static final DataTicket<TurretType> TURRET_TYPE = DataTicket.create("tacz_turrets_type", TurretType.class);
+    public static final DataTicket<TurretState> TURRET_STATE = DataTicket.create("tacz_turrets_state", TurretState.class);
+    public static final DataTicket<TurretEntity> TURRET = DataTicket.create("tacz_turrets_turret", TurretEntity.class);
+
     public TurretModel() {
         super(TACZTurrets.id("turret"));
     }
 
     @Override
-    public ResourceLocation getModelResource(TurretEntity animatable) {
-        return animatable.getTurretType().model();
+    public void addAdditionalStateData(TurretEntity animatable, Object relatedObject, GeoRenderState renderState) {
+        renderState.addGeckolibData(TURRET_TYPE, animatable.getTurretType());
+        renderState.addGeckolibData(TURRET_STATE, TurretState.getState(animatable));
+        renderState.addGeckolibData(TURRET, animatable);
     }
 
     @Override
-    public ResourceLocation getTextureResource(TurretEntity animatable) {
-        return animatable.getTurretType().texture(TurretState.getState(animatable));
+    public Identifier getModelResource(GeoRenderState renderState) {
+        TurretType type = renderState.getOrDefaultGeckolibData(TURRET_TYPE, TurretType.MODERN);
+        return type.model();
     }
 
     @Override
-    public void setCustomAnimations(TurretEntity turret, long instanceId, AnimationState<TurretEntity> animationState) {
-        var head = getAnimationProcessor().getBone("head");
-        Vector2f aim = TurretRenderer.aim(turret, turret.getYHeadRot(), Mth.lerp(animationState.getPartialTick(), turret.xRotO, turret.getXRot()));
-        float yaw = 180 - aim.x;
-        if (head != null) {
-            head.setRotX((-aim.y - turret.getRecoilDegrees(animationState.getPartialTick())) * Mth.DEG_TO_RAD);
-            head.setRotY(yaw * Mth.DEG_TO_RAD);
-        }
-        var center = getAnimationProcessor().getBone("center");
-        if (center != null) {
-            center.setRotY(yaw * Mth.DEG_TO_RAD);
-        }
-        var cog = getAnimationProcessor().getBone("cog");
-        if (cog != null && TurretType.BRASS.isAvailable()) {
-            cog.setRotY(TurretRenderer.up(turret).getAxisDirection().getStep() * CreateCogClock.degrees(turret, animationState.getPartialTick()) * Mth.DEG_TO_RAD);
-        }
-        if (getAnimationProcessor().getBone("laser") instanceof GeoBone laser) {
-            laser.setTrackingMatrices(true);
-        }
+    public Identifier getTextureResource(GeoRenderState renderState) {
+        TurretType type = renderState.getOrDefaultGeckolibData(TURRET_TYPE, TurretType.MODERN);
+        TurretState state = renderState.getOrDefaultGeckolibData(TURRET_STATE, TurretState.NO_GUN);
+        return type.texture(state);
     }
 }

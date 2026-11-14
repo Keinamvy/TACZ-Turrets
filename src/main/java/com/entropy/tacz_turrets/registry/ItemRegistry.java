@@ -7,11 +7,10 @@ import com.entropy.tacz_turrets.item.TurretItem;
 import com.entropy.tacz_turrets.turret.TurretType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.Item;
-//? if forge {
-import net.minecraftforge.registries.DeferredRegister;
-//?} else {
-/*import net.neoforged.neoforge.registries.DeferredRegister;
-*///?}
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -21,15 +20,30 @@ import java.util.function.Supplier;
 import static com.entropy.tacz_turrets.TACZTurrets.MODID;
 
 public class ItemRegistry {
-    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(Registries.ITEM, MODID);
+    public static final Entries ITEMS = new Entries();
+
+    public static class Entries {
+        private final List<Supplier<? extends Item>> entries = new ArrayList<>();
+
+        public <T extends Item> Supplier<T> register(String name, Supplier<T> supplier) {
+            T item = Registry.register(BuiltInRegistries.ITEM, TACZTurrets.id(name), supplier.get());
+            Supplier<T> s = () -> item;
+            entries.add(s);
+            return s;
+        }
+
+        public Collection<Supplier<? extends Item>> getEntries() {
+            return entries;
+        }
+    }
+
+    public static void register() {}
     public static final Map<TurretType, Supplier<TurretItem>> TURRETS = new EnumMap<>(TurretType.class);
     public static final List<String> CAMOS = List.of("desert", "badlands", "forest", "snow", "jungle", "swamp", "urban", "night", "ocean", "autumn", "nether", "end", "oak", "spruce", "birch", "acacia", "dark_oak", "mangrove", "cherry");
 
     static {
         for (TurretType type : TurretType.values()) TURRETS.put(type, ITEMS.register(type.id() + "_turret", () -> new TurretItem(type)));
         for (String camo : CAMOS) ITEMS.register(camo + "_camo", () -> new CamoItem(camo));
-        //? if neoforge
-        /*ITEMS.addAlias(TACZTurrets.id("turret"), TACZTurrets.id("modern_turret"));*/
     }
 
     public static final Supplier<Item> SENTRY_SPAWN_EGG = ITEMS.register("sentry_turret_spawn_egg", SentrySpawnEggItem::new);

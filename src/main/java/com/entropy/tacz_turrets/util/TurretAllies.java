@@ -1,75 +1,41 @@
 package com.entropy.tacz_turrets.util;
 
-//? if neoforge
-/*import net.minecraft.core.HolderLookup;*/
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
+import com.entropy.tacz_turrets.TACZTurrets;
+import com.mojang.serialization.Codec;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 public class TurretAllies extends SavedData {
-    private static final String FILE_NAME = "tacz_turrets_allies";
-    private static final String OWNERS_TAG = "Owners";
-    private static final String OWNER_TAG = "Owner";
-    private static final String ALLIES_TAG = "Allies";
-
     private final Map<UUID, Set<UUID>> allies = new HashMap<>();
 
-    public static TurretAllies get(MinecraftServer server) {
-        //? if forge {
-        return server.overworld().getDataStorage().computeIfAbsent(TurretAllies::load, TurretAllies::new, FILE_NAME);
-        //?} else {
-        /*return server.overworld().getDataStorage().computeIfAbsent(new Factory<>(TurretAllies::new, TurretAllies::load), FILE_NAME);
-        *///?}
-    }
-
-    //? if forge {
-    public static TurretAllies load(CompoundTag tag) {
-    //?} else {
-    /*public static TurretAllies load(CompoundTag tag, HolderLookup.Provider registries) {
-    *///?}
-        TurretAllies data = new TurretAllies();
-        ListTag owners = tag.getList(OWNERS_TAG, Tag.TAG_COMPOUND);
-        for (int index = 0; index < owners.size(); index++) {
-            CompoundTag entry = owners.getCompound(index);
-            if (!entry.hasUUID(OWNER_TAG)) continue;
-            Set<UUID> trusted = new HashSet<>();
-            ListTag list = entry.getList(ALLIES_TAG, Tag.TAG_INT_ARRAY);
-            for (int ally = 0; ally < list.size(); ally++) {
-                trusted.add(NbtUtils.loadUUID(list.get(ally)));
+    public static final Codec<TurretAllies> CODEC = Codec.unboundedMap(UUIDUtil.STRING_CODEC, UUIDUtil.CODEC.listOf()).xmap(
+            map -> {
+                TurretAllies data = new TurretAllies();
+                map.forEach((owner, list) -> data.allies.put(owner, new HashSet<>(list)));
+                return data;
+            },
+            data -> {
+                Map<UUID, List<UUID>> out = new HashMap<>();
+                data.allies.forEach((owner, set) -> {
+                    if (!set.isEmpty()) out.put(owner, List.copyOf(set));
+                });
+                return out;
             }
-            data.allies.put(entry.getUUID(OWNER_TAG), trusted);
-        }
-        return data;
-    }
+    );
 
-    @Override
-    //? if forge {
-    public @NotNull CompoundTag save(@NotNull CompoundTag tag) {
-    //?} else {
-    /*public @NotNull CompoundTag save(@NotNull CompoundTag tag, @NotNull HolderLookup.Provider registries) {
-    *///?}
-        ListTag owners = new ListTag();
-        allies.forEach((owner, trusted) -> {
-            if (trusted.isEmpty()) return;
-            CompoundTag entry = new CompoundTag();
-            entry.putUUID(OWNER_TAG, owner);
-            ListTag list = new ListTag();
-            trusted.forEach(ally -> list.add(NbtUtils.createUUID(ally)));
-            entry.put(ALLIES_TAG, list);
-            owners.add(entry);
-        });
-        tag.put(OWNERS_TAG, owners);
-        return tag;
+    public static final SavedDataType<TurretAllies> TYPE = new SavedDataType<>(TACZTurrets.id("allies"), TurretAllies::new, CODEC, null);
+
+    public static TurretAllies get(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
     }
 
     public boolean isAlly(UUID owner, UUID other) {

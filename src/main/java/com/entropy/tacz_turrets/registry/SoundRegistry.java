@@ -3,21 +3,24 @@ package com.entropy.tacz_turrets.registry;
 import com.entropy.tacz_turrets.TACZTurrets;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundEvent;
-//? if forge {
-import net.minecraftforge.registries.DeferredRegister;
-//?} else {
-/*import net.neoforged.neoforge.registries.DeferredRegister;
-*///?}
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.function.Supplier;
 
 import static com.entropy.tacz_turrets.TACZTurrets.MODID;
 
 public class SoundRegistry {
-    public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(Registries.SOUND_EVENT, MODID);
-    public static final Supplier<SoundEvent> TURRET_PLACE = SOUNDS.register("turret_place", () -> SoundEvent.createVariableRangeEvent(TACZTurrets.id("turret_place")));
-    public static final Supplier<SoundEvent> TURRET_PICKUP = SOUNDS.register("turret_pickup", () -> SoundEvent.createVariableRangeEvent(TACZTurrets.id("turret_pickup")));
-    public static final Supplier<SoundEvent> TURRET_HURT = SOUNDS.register("turret_hurt", () -> SoundEvent.createVariableRangeEvent(TACZTurrets.id("turret_hurt")));
-    public static final Supplier<SoundEvent> TURRET_LOCK_ON = SOUNDS.register("turret_lock_on", () -> SoundEvent.createVariableRangeEvent(TACZTurrets.id("turret_lock_on")));
-    public static final Supplier<SoundEvent> TURRET_PAN = SOUNDS.register("turret_pan", () -> SoundEvent.createVariableRangeEvent(TACZTurrets.id("turret_pan")));
+    public static final Supplier<SoundEvent> TURRET_PLACE = register("turret_place");
+    public static final Supplier<SoundEvent> TURRET_PICKUP = register("turret_pickup");
+    public static final Supplier<SoundEvent> TURRET_HURT = register("turret_hurt");
+    public static final Supplier<SoundEvent> TURRET_LOCK_ON = register("turret_lock_on");
+    public static final Supplier<SoundEvent> TURRET_PAN = register("turret_pan");
+
+    private static Supplier<SoundEvent> register(String name) {
+        SoundEvent event = Registry.register(BuiltInRegistries.SOUND_EVENT, TACZTurrets.id(name), SoundEvent.createVariableRangeEvent(TACZTurrets.id(name)));
+        return () -> event;
+    }
+
+    public static void register() {}
 }

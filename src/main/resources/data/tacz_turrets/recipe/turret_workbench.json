@@ -7,15 +7,9 @@
     "I I"
   ],
   "key": {
-    "B": {
-      "item": "minecraft:iron_bars"
-    },
-    "C": {
-      "item": "minecraft:crafting_table"
-    },
-    "I": {
-      "tag": "c:ingots/iron"
-    }
+    "B": "minecraft:iron_bars",
+    "C": "minecraft:crafting_table",
+    "I": "#c:ingots/iron"
   },
   "result": {
     "id": "tacz:workbench_b",

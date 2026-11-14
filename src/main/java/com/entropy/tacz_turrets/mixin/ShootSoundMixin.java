@@ -3,7 +3,7 @@ package com.entropy.tacz_turrets.mixin;
 import com.entropy.tacz_turrets.config.TACZTurretsConfig;
 import com.entropy.tacz_turrets.turret.TurretEntity;
 import com.tacz.guns.sound.SoundManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(SoundManager.class)
 public class ShootSoundMixin {
     @Inject(method = "sendSoundToNearby", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void turretShootSound(LivingEntity sourceEntity, int distance, ResourceLocation gunId, ResourceLocation gunDisplayId, String soundName, float volume, float pitch, CallbackInfo ci) {
+    private static void turretShootSound(LivingEntity sourceEntity, int distance, Identifier gunId, Identifier gunDisplayId, String soundName, float volume, float pitch, CallbackInfo ci) {
         if (!TACZTurretsConfig.FIRST_PERSON_SHOOT_SOUND.get() || !(sourceEntity instanceof TurretEntity)) {
             return;
         }

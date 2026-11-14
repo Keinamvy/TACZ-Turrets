@@ -13,10 +13,10 @@
     "ReloadSpeedMixin",
     "ShootSoundMixin",
     "StructureStartMixin",
+    "TableRecipeManagerMixin",
     "TurretWorkbenchBlockMixin"
   ],
   "client": [
-    "BlockModelShaperMixin",
     "GunSmithTableScreenMixin"
   ],
   "injectors": {

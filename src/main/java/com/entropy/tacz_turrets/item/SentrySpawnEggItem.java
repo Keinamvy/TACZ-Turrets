@@ -6,24 +6,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import org.jetbrains.annotations.NotNull;
-//? if forge {
-import net.minecraftforge.common.ForgeSpawnEggItem;
 
-public class SentrySpawnEggItem extends ForgeSpawnEggItem {
-//?} else {
-/*import net.neoforged.neoforge.common.DeferredSpawnEggItem;
-
-public class SentrySpawnEggItem extends DeferredSpawnEggItem {
-*///?}
+public class SentrySpawnEggItem extends Item {
     public SentrySpawnEggItem() {
-        super(EntityTypeRegistry.SENTRY, 0x3B4046, 0xD8492F, new Item.Properties());
+        super(new Item.Properties().setId(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ITEM, com.entropy.tacz_turrets.TACZTurrets.id("sentry_turret_spawn_egg"))));
     }
 
     @Override
@@ -31,9 +23,10 @@ public class SentrySpawnEggItem extends DeferredSpawnEggItem {
         Direction attach = context.getClickedFace().getOpposite();
         BlockPos clicked = context.getClickedPos();
         BlockState state = context.getLevel().getBlockState(clicked);
-        if (attach == Direction.DOWN || state.is(Blocks.SPAWNER) || state.getCollisionShape(context.getLevel(), clicked).isEmpty()) return super.useOn(context);
+        if (state.getCollisionShape(context.getLevel(), clicked).isEmpty()) return InteractionResult.PASS;
         if (!(context.getLevel() instanceof ServerLevel level)) return InteractionResult.SUCCESS;
-        TurretEntity sentry = EntityTypeRegistry.SENTRY.get().spawn(level, context.getItemInHand(), context.getPlayer(), clicked.relative(context.getClickedFace()), MobSpawnType.SPAWN_EGG, false, false);
+        BlockPos spawnPos = clicked.relative(context.getClickedFace());
+        TurretEntity sentry = EntityTypeRegistry.SENTRY.get().spawn(level, context.getItemInHand(), context.getPlayer(), spawnPos, EntitySpawnReason.SPAWN_ITEM_USE, true, false);
         if (sentry != null) {
             sentry.setAttachFace(attach);
             context.getItemInHand().shrink(1);

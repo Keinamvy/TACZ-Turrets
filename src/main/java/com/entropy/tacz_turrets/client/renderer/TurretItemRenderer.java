@@ -3,61 +3,51 @@ package com.entropy.tacz_turrets.client.renderer;
 import com.entropy.tacz_turrets.TACZTurrets;
 import com.entropy.tacz_turrets.item.TurretItem;
 import com.entropy.tacz_turrets.turret.TurretState;
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
-import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.model.GeoModel;
-//? if forge {
-import software.bernie.geckolib.core.animation.AnimationState;
-//?} else {
-/*import software.bernie.geckolib.animation.AnimationState;
-*///?}
-import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
-//? if forge {
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-//?} else {
-/*import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
-*///?}
+import com.entropy.tacz_turrets.turret.TurretType;
+import com.geckolib.animatable.client.GeoRenderProvider;
+import com.geckolib.model.GeoModel;
+import com.geckolib.renderer.GeoItemRenderer;
+import com.geckolib.renderer.base.GeoRenderState;
+import com.geckolib.renderer.layer.builtin.AutoGlowingGeoLayer;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 
 public class TurretItemRenderer extends GeoItemRenderer<TurretItem> {
-    public static final IClientItemExtensions EXTENSIONS = new IClientItemExtensions() {
+    public static final GeoRenderProvider RENDER_PROVIDER = new GeoRenderProvider() {
         private TurretItemRenderer renderer;
 
         @Override
-        public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+        public GeoItemRenderer<?> getGeoItemRenderer() {
             if (renderer == null) renderer = new TurretItemRenderer();
             return renderer;
         }
     };
+    public static final GeoRenderProvider EXTENSIONS = RENDER_PROVIDER;
 
     public TurretItemRenderer() {
-        super(new GeoModel<>() {
-            @Override
-            public ResourceLocation getModelResource(TurretItem item) {
-                return item.getType().model();
+        super(new GeoModel<TurretItem>() {
+            private TurretType getType(GeoRenderState renderState) {
+                Object data = renderState.getGeckolibData(GeoItemRenderer.CURRENT_ITEM);
+                if (data instanceof TurretItem ti) return ti.getType();
+                if (data instanceof ItemStack stack && stack.getItem() instanceof TurretItem ti) return ti.getType();
+                return TurretType.MODERN;
             }
 
             @Override
-            public ResourceLocation getTextureResource(TurretItem item) {
-                return item.getType().texture(TurretState.NO_GUN);
+            public Identifier getModelResource(GeoRenderState renderState) {
+                return getType(renderState).model();
             }
 
             @Override
-            public ResourceLocation getAnimationResource(TurretItem item) {
-                return TACZTurrets.id("animations/entity/turret.animation.json");
+            public Identifier getTextureResource(GeoRenderState renderState) {
+                return getType(renderState).texture(TurretState.NO_GUN);
             }
 
             @Override
-            public void setCustomAnimations(TurretItem item, long instanceId, AnimationState<TurretItem> animationState) {
-                for (String name : new String[] {"head", "center", "cog"}) {
-                    var bone = getAnimationProcessor().getBone(name);
-                    if (bone == null) continue;
-                    bone.setRotX(bone.getInitialSnapshot().getRotX());
-                    bone.setRotY(bone.getInitialSnapshot().getRotY());
-                    bone.setRotZ(bone.getInitialSnapshot().getRotZ());
-                }
+            public Identifier getAnimationResource(TurretItem item) {
+                return TACZTurrets.id("entity/turret");
             }
         });
-        addRenderLayer(new AutoGlowingGeoLayer<>(this));
+        withRenderLayer(new AutoGlowingGeoLayer<>(this));
     }
 }

@@ -1,6 +1,7 @@
 {
   "pack": {
     "description": "TACZ Turrets resources",
-    "pack_format": ${pack_format}
+    "min_format": 82,
+    "max_format": 999
   }
 }

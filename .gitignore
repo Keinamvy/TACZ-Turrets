@@ -126,3 +126,8 @@ runs/
 bin/
 
 .kotlin/
+
+# Runtime, test server, and local analysis outputs
+logs/
+run-test-server/
+graphify-out/

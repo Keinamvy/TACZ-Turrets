@@ -7,10 +7,10 @@ import com.tacz.guns.util.EntityUtil;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
 

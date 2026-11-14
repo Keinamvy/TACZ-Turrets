@@ -7,16 +7,18 @@ import com.entropy.tacz_turrets.menu.TurretMenu;
 import com.entropy.tacz_turrets.network.TACZTurretsNetwork;
 import com.entropy.tacz_turrets.network.ToggleAllyPacket;
 import com.entropy.tacz_turrets.turret.HealthBarStyle;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.PlayerFaceRenderer;
-import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -30,17 +32,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
-    //? if forge {
-    private static final ResourceLocation TEXTURE = TACZTurrets.id("textures/gui/turret.png");
-    //?} else {
-    /*private static final ResourceLocation BACKGROUND = TACZTurrets.id("background");
-    private static final ResourceLocation SLOT_TEXTURE = TACZTurrets.id("textures/gui/sprites/slot.png");
-    *///?}
-
-    private static final int PANEL_SLICE = 4;
-    private static final int PANEL_SIZE = 16;
-    private static final int SLOT_U = 32;
-    private static final int SLOT_V = 0;
+    private static final Identifier BACKGROUND = TACZTurrets.id("background");
+    private static final Identifier SLOT_TEXTURE = TACZTurrets.id("textures/gui/sprites/slot.png");
 
     private static final int BAR_BACKGROUND = 0xFF101010;
     private static final int BAR_BORDER = 0xFF373737;
@@ -56,10 +49,8 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
     private boolean allyListPinned = false;
 
     public TurretScreen(TurretMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
+        super(menu, playerInventory, title, menu.getLayout().width, menu.getLayout().height);
         layout = menu.getLayout();
-        imageWidth = layout.width;
-        imageHeight = layout.height;
         inventoryLabelY = layout.inventoryLabelY;
         titleLabelY = 6;
     }
@@ -110,31 +101,24 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
         return ((int) red << 16) | ((int) green << 8) | (int) blue;
     }
 
-    private void drawPanel(GuiGraphics graphics, int x, int y, int width, int height) {
+    private void drawPanel(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, BAR_BORDER);
         graphics.fill(x, y, x + width, y + height, BAR_BACKGROUND);
     }
 
-    private void drawBar(GuiGraphics graphics, int x, int y, int width, int height, float fraction, int color) {
+    private void drawBar(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float fraction, int color) {
         drawPanel(graphics, x, y, width, height);
         int filled = Mth.clamp(Math.round(width * fraction), 0, width);
         if (filled > 0) graphics.fill(x, y, x + filled, y + height, 0xFF000000 | color);
     }
 
     @Override
-    protected void renderBg(@NotNull GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        //? if forge {
-        graphics.blitNineSliced(TEXTURE, leftPos, topPos, imageWidth, imageHeight, PANEL_SLICE, PANEL_SLICE, PANEL_SIZE, PANEL_SIZE, 0, 0);
-        //?} else {
-        /*graphics.blitSprite(BACKGROUND, leftPos, topPos, imageWidth, imageHeight);
-        *///?}
+    public void extractBackground(@NotNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, imageWidth, imageHeight);
 
         for (Slot slot : menu.slots) {
-            //? if forge {
-            graphics.blit(TEXTURE, leftPos + slot.x - 1, topPos + slot.y - 1, SLOT_U, SLOT_V, TurretLayout.SLOT, TurretLayout.SLOT);
-            //?} else {
-            /*graphics.blit(SLOT_TEXTURE, leftPos + slot.x - 1, topPos + slot.y - 1, 0, 0, TurretLayout.SLOT, TurretLayout.SLOT, TurretLayout.SLOT, TurretLayout.SLOT);
-            *///?}
+            graphics.blit(RenderPipelines.GUI_TEXTURED, SLOT_TEXTURE, leftPos + slot.x - 1, topPos + slot.y - 1, 0.0F, 0.0F, TurretLayout.SLOT, TurretLayout.SLOT, TurretLayout.SLOT, TurretLayout.SLOT);
         }
 
         float healthFraction = (float) menu.getHealth() / menu.getMaxHealth();
@@ -147,12 +131,32 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
     }
 
     @Override
-    protected void renderLabels(@NotNull GuiGraphics graphics, int mouseX, int mouseY) {
-        super.renderLabels(graphics, mouseX, mouseY);
+    public void extractContents(@NotNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        buttonRefreshers.forEach(Runnable::run);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
+
+        if (allyListOpen(mouseX, mouseY)) {
+            renderAllyList(graphics, mouseX, mouseY);
+        }
+
+        if (ownerNameTrimmed() && isHovering(TurretLayout.MARGIN, layout.gunSlotY + 5, ownerMaxWidth(), 9, mouseX, mouseY)) {
+            graphics.setTooltipForNextFrame(font, ownerLabel(), mouseX, mouseY);
+        }
+
+        if (isHovering(TurretLayout.MARGIN, layout.healthBarY, layout.barWidth, TurretLayout.BAR_HEIGHT, mouseX, mouseY)) {
+            graphics.setTooltipForNextFrame(font, Component.translatable("gui.tacz_turrets.health", menu.getHealth(), menu.getMaxHealth()), mouseX, mouseY);
+        } else if (menu.usesEnergy() && isHovering(TurretLayout.MARGIN, layout.energyBarY, layout.barWidth, TurretLayout.BAR_HEIGHT, mouseX, mouseY)) {
+            graphics.setTooltipForNextFrame(font, Component.translatable("gui.tacz_turrets.energy", menu.getEnergy(), menu.getMaxEnergy()), mouseX, mouseY);
+        }
+    }
+
+    @Override
+    protected void extractLabels(@NotNull GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        super.extractLabels(graphics, mouseX, mouseY);
         Component health = Component.literal(menu.getHealth() + " / " + menu.getMaxHealth());
-        graphics.drawString(font, health, imageWidth - TurretLayout.MARGIN - font.width(health), titleLabelY, 0x404040, false);
+        graphics.text(font, health, imageWidth - TurretLayout.MARGIN - font.width(health), titleLabelY, 0x404040, false);
         if (!menu.getOwnerName().isEmpty()) {
-            graphics.drawString(font, trimmedOwnerLabel(), TurretLayout.MARGIN, layout.gunSlotY + 5, 0x404040, false);
+            graphics.text(font, trimmedOwnerLabel(), TurretLayout.MARGIN, layout.gunSlotY + 5, 0x404040, false);
         }
     }
 
@@ -177,9 +181,9 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
     private List<PlayerInfo> onlinePlayers() {
         if (minecraft == null || minecraft.getConnection() == null) return List.of();
         return minecraft.getConnection().getOnlinePlayers().stream()
-                .filter(info -> minecraft.player == null || !info.getProfile().getId().equals(minecraft.player.getUUID()))
-                .filter(info -> !info.getProfile().getName().equals(menu.getOwnerName()))
-                .sorted(Comparator.comparing(info -> info.getProfile().getName()))
+                .filter(info -> minecraft.player == null || !info.getProfile().id().equals(minecraft.player.getUUID()))
+                .filter(info -> !info.getProfile().name().equals(menu.getOwnerName()))
+                .sorted(Comparator.comparing(info -> info.getProfile().name()))
                 .limit(ALLY_MAX_ROWS)
                 .toList();
     }
@@ -197,7 +201,7 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
         width = Math.max(width, font.width(Component.translatable("gui.tacz_turrets.allies.empty")) + 8);
         int allyTag = font.width(Component.translatable("gui.tacz_turrets.allies.ally"));
         for (PlayerInfo info : onlinePlayers()) {
-            width = Math.max(width, 14 + font.width(info.getProfile().getName()) + 8 + allyTag + 4);
+            width = Math.max(width, 14 + font.width(info.getProfile().name()) + 8 + allyTag + 4);
         }
         return width;
     }
@@ -225,7 +229,7 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
         return row < onlinePlayers().size() ? row : -1;
     }
 
-    private void renderAllyList(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderAllyList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         List<PlayerInfo> players = onlinePlayers();
         int x = leftPos + allyButtonX();
         int y = topPos + allyListY();
@@ -233,7 +237,7 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
         drawPanel(graphics, x, y, width, allyListRows() * ALLY_ROW_HEIGHT);
 
         if (players.isEmpty()) {
-            graphics.drawString(font, Component.translatable("gui.tacz_turrets.allies.empty"), x + 3, y + 2, 0xA0A0A0, false);
+            graphics.text(font, Component.translatable("gui.tacz_turrets.allies.empty"), x + 3, y + 2, 0xA0A0A0, false);
             return;
         }
 
@@ -243,53 +247,26 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
             int rowY = y + index * ALLY_ROW_HEIGHT;
             if (index == hovered) graphics.fill(x, rowY, x + width, rowY + ALLY_ROW_HEIGHT, 0xFF303030);
 
-            //? if forge {
-            PlayerFaceRenderer.draw(graphics, info.getSkinLocation(), x + 2, rowY + 1, 8);
-            //?} else {
-            /*PlayerFaceRenderer.draw(graphics, info.getSkin(), x + 2, rowY + 1, 8);
-            *///?}
-            boolean ally = menu.isAlly(info.getProfile().getId());
-            graphics.drawString(font, info.getProfile().getName(), x + 13, rowY + 2, ally ? 0x40D040 : 0xC0C0C0, false);
+            PlayerFaceExtractor.extractRenderState(graphics, info.getSkin(), x + 2, rowY + 1, 8);
+            boolean ally = menu.isAlly(info.getProfile().id());
+            graphics.text(font, info.getProfile().name(), x + 13, rowY + 2, ally ? 0x40D040 : 0xC0C0C0, false);
             if (ally) {
                 Component tag = Component.translatable("gui.tacz_turrets.allies.ally");
-                graphics.drawString(font, tag, x + width - 3 - font.width(tag), rowY + 2, 0x40D040, false);
+                graphics.text(font, tag, x + width - 3 - font.width(tag), rowY + 2, 0x40D040, false);
             }
         }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int row = allyListOpen((int) mouseX, (int) mouseY) ? hoveredAllyRow(mouseX, mouseY) : -1;
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        int row = allyListOpen((int) event.x(), (int) event.y()) ? hoveredAllyRow(event.x(), event.y()) : -1;
         if (row >= 0) {
-            UUID target = onlinePlayers().get(row).getProfile().getId();
+            UUID target = onlinePlayers().get(row).getProfile().id();
             menu.toggleAllyLocally(target);
             TACZTurretsNetwork.sendToServer(new ToggleAllyPacket(target));
             if (minecraft != null) minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        //? if forge {
-        renderBackground(graphics);
-        //?} else {
-        /*renderBackground(graphics, mouseX, mouseY, partialTick);
-        *///?}
-        buttonRefreshers.forEach(Runnable::run);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        renderTooltip(graphics, mouseX, mouseY);
-        if (allyListOpen(mouseX, mouseY)) renderAllyList(graphics, mouseX, mouseY);
-
-        if (ownerNameTrimmed() && isHovering(TurretLayout.MARGIN, layout.gunSlotY + 5, ownerMaxWidth(), 9, mouseX, mouseY)) {
-            graphics.renderTooltip(font, ownerLabel(), mouseX, mouseY);
-        }
-
-        if (isHovering(TurretLayout.MARGIN, layout.healthBarY, layout.barWidth, TurretLayout.BAR_HEIGHT, mouseX, mouseY)) {
-            graphics.renderTooltip(font, Component.translatable("gui.tacz_turrets.health", menu.getHealth(), menu.getMaxHealth()), mouseX, mouseY);
-        } else if (menu.usesEnergy() && isHovering(TurretLayout.MARGIN, layout.energyBarY, layout.barWidth, TurretLayout.BAR_HEIGHT, mouseX, mouseY)) {
-            graphics.renderTooltip(font, Component.translatable("gui.tacz_turrets.energy", menu.getEnergy(), menu.getMaxEnergy()), mouseX, mouseY);
-        }
+        return super.mouseClicked(event, doubleClick);
     }
 }

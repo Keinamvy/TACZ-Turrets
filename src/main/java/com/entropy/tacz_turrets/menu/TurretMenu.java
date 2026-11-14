@@ -49,7 +49,14 @@ public class TurretMenu extends AbstractContainerMenu {
     private final boolean canModify;
 
     public TurretMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
-        this(containerId, playerInventory, clientTurret(playerInventory, buf), new TurretLayout(buf.readByte(), buf.readByte()), buf.readUtf(), buf.readCollection(HashSet::new, in -> in.readUUID()), buf.readBoolean());
+        this(containerId, playerInventory, clientTurret(playerInventory, buf), new TurretLayout(buf.readByte(), buf.readByte()), buf.readUtf(), readAllies(buf), buf.readBoolean());
+    }
+
+    private static Set<UUID> readAllies(FriendlyByteBuf buf) {
+        int count = buf.readVarInt();
+        Set<UUID> set = new HashSet<>(count);
+        for (int i = 0; i < count; i++) set.add(buf.readUUID());
+        return set;
     }
 
     public TurretMenu(int containerId, Inventory playerInventory, @Nullable TurretEntity turret, TurretLayout layout, String ownerName, Set<UUID> allies, boolean canModify) {

@@ -1,4 +1,11 @@
 {
+  "fabric:load_conditions": [
+    {
+      "condition": "tacz_turrets:turret_enabled",
+      "turret": "industrial",
+      "identical": false
+    }
+  ],
   "neoforge:conditions": [
     {
       "type": "tacz_turrets:turret_enabled",

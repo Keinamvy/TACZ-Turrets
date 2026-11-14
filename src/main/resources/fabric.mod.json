@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "${description}",
+  "authors": [
+    "${authors}"
+  ],
+  "contact": {},
+  "license": "${license}",
+  "icon": "assets/tacz_turrets/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.entropy.tacz_turrets.TACZTurrets"
+    ],
+    "client": [
+      "com.entropy.tacz_turrets.client.RenderRegistry"
+    ]
+  },
+  "mixins": [
+    "mixins.tacz_turrets.json"
+  ],
+  "depends": {
+    "fabricloader": "${loader_range}",
+    "minecraft": "${minecraft}",
+    "fabric-api": "*",
+    "tacz": ">=${tacz}",
+    "geckolib": ">=${geckolib}",
+    "smartbrainlib": ">=${smartbrainlib}"
+  },
+  "suggests": {
+    "forgeconfigapiport": "*",
+    "ftbteams": ">=${ftbteams_min}",
+    "openpartiesandclaims": ">=${opac_min}"
+  }
+}
