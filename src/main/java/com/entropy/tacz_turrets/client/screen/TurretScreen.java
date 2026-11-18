@@ -154,9 +154,9 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
     protected void extractLabels(@NotNull GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         super.extractLabels(graphics, mouseX, mouseY);
         Component health = Component.literal(menu.getHealth() + " / " + menu.getMaxHealth());
-        graphics.text(font, health, imageWidth - TurretLayout.MARGIN - font.width(health), titleLabelY, 0x404040, false);
+        graphics.text(font, health, imageWidth - TurretLayout.MARGIN - font.width(health), titleLabelY, 0xFF404040, false);
         if (!menu.getOwnerName().isEmpty()) {
-            graphics.text(font, trimmedOwnerLabel(), TurretLayout.MARGIN, layout.gunSlotY + 5, 0x404040, false);
+            graphics.text(font, trimmedOwnerLabel(), TurretLayout.MARGIN, layout.gunSlotY + 5, 0xFF404040, false);
         }
     }
 
@@ -237,7 +237,7 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
         drawPanel(graphics, x, y, width, allyListRows() * ALLY_ROW_HEIGHT);
 
         if (players.isEmpty()) {
-            graphics.text(font, Component.translatable("gui.tacz_turrets.allies.empty"), x + 3, y + 2, 0xA0A0A0, false);
+            graphics.text(font, Component.translatable("gui.tacz_turrets.allies.empty"), x + 3, y + 2, 0xFFA0A0A0, false);
             return;
         }
 
@@ -249,10 +249,10 @@ public class TurretScreen extends AbstractContainerScreen<TurretMenu> {
 
             PlayerFaceExtractor.extractRenderState(graphics, info.getSkin(), x + 2, rowY + 1, 8);
             boolean ally = menu.isAlly(info.getProfile().id());
-            graphics.text(font, info.getProfile().name(), x + 13, rowY + 2, ally ? 0x40D040 : 0xC0C0C0, false);
+            graphics.text(font, info.getProfile().name(), x + 13, rowY + 2, ally ? 0xFF40D040 : 0xFFC0C0C0, false);
             if (ally) {
                 Component tag = Component.translatable("gui.tacz_turrets.allies.ally");
-                graphics.text(font, tag, x + width - 3 - font.width(tag), rowY + 2, 0x40D040, false);
+                graphics.text(font, tag, x + width - 3 - font.width(tag), rowY + 2, 0xFF40D040, false);
             }
         }
     }

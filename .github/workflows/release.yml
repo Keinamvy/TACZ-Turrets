@@ -1,0 +1,91 @@
+name: Release Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v4.3.0-26.3-fabric)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Fetch Fabric 26.3 dependencies into libs/
+        run: |
+          mkdir -p libs
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          deps = [
+              ("tacz-refabricated-unofficial-port", "TACZ-Refabricated-26.3-1.1.8+fabric.26.3.R1-hotfix3.jar"),
+              ("forge-config-api-port", "ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar"),
+              ("geckolib", "geckolib-fabric-26.3-5.5.7.jar"),
+              ("smartbrainlib", "smartbrainlib-fabric-26.3-2.0.3.jar"),
+          ]
+          for slug, target_name in deps:
+              url = f"https://api.modrinth.com/v2/project/{slug}/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%2226.3%22%5D"
+              req = urllib.request.Request(url, headers={"User-Agent": "TACZ-Turrets-CI/1.0"})
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  versions = json.loads(resp.read().decode("utf-8"))
+              matched = None
+              for v in versions:
+                  for f in v.get("files", []):
+                      if f.get("filename") == target_name:
+                          matched = f
+                          break
+                  if matched:
+                      break
+              if not matched and versions:
+                  matched = versions[0]["files"][0]
+              if not matched:
+                  raise RuntimeError(f"Could not find Modrinth file for {slug}")
+              dl_url = matched["url"]
+              print(f"Downloading {dl_url} -> libs/{target_name}")
+              req2 = urllib.request.Request(dl_url, headers={"User-Agent": "TACZ-Turrets-CI/1.0"})
+              with urllib.request.urlopen(req2, timeout=60) as r2:
+                  Path(f"libs/{target_name}").write_bytes(r2.read())
+          PY
+          unzip -j -o "libs/TACZ-Refabricated-26.3-1.1.8+fabric.26.3.R1-hotfix3.jar" "META-INF/jars/*.jar" -d libs/
+          unzip -j -o "libs/ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar" "META-INF/jars/*.jar" -d libs/
+          ls -lh libs/
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tacz_turrets-fabric-26.3
+          path: build/libs/*.jar
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
+          generate_release_notes: true
+          files: |
+            build/libs/*.jar

@@ -114,7 +114,7 @@ public class TurretRenderer<R extends LivingEntityRenderState & GeoRenderState> 
             poseStack.rotate(Axis.YN.rotationDegrees(aim.x + 180));
             poseStack.rotate(Axis.XN.rotationDegrees(aim.y - turret.getRecoilDegrees(partialTick)));
             poseStack.translate(0.0F, 0.0F, turret.getRecoilPush(partialTick));
-            if (turret.hasMinigun()) {
+            if (TimelessAPI.getGunDisplay(turret.getGunStack()).map(display -> display.getThirdPersonAnimation().equals("minigun")).orElse(false)) {
                 poseStack.rotate(Axis.XN.rotationDegrees(90));
             }
             ItemStackRenderState gunState = RenderUtil.createRenderStateForItem(turret.getGunStack(), this.itemModelResolver, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, turret);
